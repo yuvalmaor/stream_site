@@ -30,7 +30,7 @@ prototxtPath = os.path.sep.join([settings.BASE_DIR, "face_detector/deploy.protot
 weightsPath = os.path.sep.join([settings.BASE_DIR,"face_detector/res10_300x300_ssd_iter_140000.caffemodel"])
 faceNet = cv2.dnn.readNet(prototxtPath, weightsPath)
 maskNet = load_model(os.path.join(settings.BASE_DIR,'face_detector/mask_detector.model'))
-r=redis.Redis(host='localhost', port=6379)
+r=redis.Redis(host='localhost', port=7000)
 r.delete('start')
 f=None
 	
@@ -45,9 +45,8 @@ def task1():
     	
 		success, image =video.read()
 		#cv2.putText(image,"60",(0,0))
-		t1=time.time()
-		f=cv2.putText(image,str(int(1/(t1-t2))),(50,50),1,4,(255, 0, 0),2,-1,False)
-		t2=time.time()
+		f=image
+		
 		#sleep(0.01)
 		#f=image
 		"""
@@ -108,7 +107,9 @@ class VideoCamera(object):
 
 class MyVideoCamera(object):
 	def __init__(self):
-		global r
+		
+		self.t1=0
+		self.t2=0
 		pass
 		
 		
@@ -120,6 +121,10 @@ class MyVideoCamera(object):
 	def get_frame(self):
 		
 		global f
+
+		self.t1=time.time()
+		image=cv2.putText(f,str(int(1/(self.t1-self.t2))),(50,50),1,4,(255, 0, 0),2,-1,False)
+		self.t2=time.time()
 		#frame = pickle.loads(r.get('frame'))
 		#a=frame
 		#a=f
@@ -130,7 +135,7 @@ class MyVideoCamera(object):
 		#except:
 		#	pass
 		#print(type(a))
-		image=f
+		#image=f
 		# We are using Motion JPEG, but OpenCV defaults to capture raw images,
 		# so we must encode it into JPEG in order to correctly display the
 		# video stream.
