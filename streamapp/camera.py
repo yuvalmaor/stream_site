@@ -1,4 +1,15 @@
+from itertools import count
+from pickle import FRAME
+from time import sleep
+import time
 import tensorflow as tf
+import multiprocessing as mp
+import redis
+import pickle
+import struct
+import subprocess
+import imutils
+import threading
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from tensorflow.keras.preprocessing.image import img_to_array
 from tensorflow.keras.models import load_model
@@ -8,6 +19,8 @@ import imutils
 import cv2,os,urllib.request
 import numpy as np
 from django.conf import settings
+#os.system("cmd python "+os.path.join(settings.BASE_DIR,'helper/help.py'))
+#subprocess.Popen(["python", os.path.join(settings.BASE_DIR,'streamapp/helper/help.py')], shell=False)
 face_detection_videocam = cv2.CascadeClassifier(os.path.join(
 			settings.BASE_DIR,'opencv_haarcascade_data/haarcascade_frontalface_default.xml'))
 face_detection_webcam = cv2.CascadeClassifier(os.path.join(
@@ -17,22 +30,75 @@ prototxtPath = os.path.sep.join([settings.BASE_DIR, "face_detector/deploy.protot
 weightsPath = os.path.sep.join([settings.BASE_DIR,"face_detector/res10_300x300_ssd_iter_140000.caffemodel"])
 faceNet = cv2.dnn.readNet(prototxtPath, weightsPath)
 maskNet = load_model(os.path.join(settings.BASE_DIR,'face_detector/mask_detector.model'))
+r=redis.Redis(host='localhost', port=6379)
+r.delete('start')
+f=None
+	
+def task1():
+	global f,r
+	print("Task 1 assigned to thread: {}".format(threading.current_thread().name))
+	print("ID of process running task 1: {}".format(os.getpid()))
+
+	video = cv2.VideoCapture(0)
+	t2=time.time()
+	while True:
+    	
+		success, image =video.read()
+		#cv2.putText(image,"60",(0,0))
+		t1=time.time()
+		f=cv2.putText(image,str(int(1/(t1-t2))),(50,50),1,4,(255, 0, 0),2,-1,False)
+		t2=time.time()
+		#sleep(0.01)
+		#f=image
+		"""
+		try:
+
+			f = pickle.loads(r.get('frame'))
+		
+			print("good load")
+		except :
+			print("fail frame")
+		"""
+
+t1 = threading.Thread(target=task1, name='t1')	
+t1.start()
+
+
 
 
 class VideoCamera(object):
 	def __init__(self):
-		self.video = cv2.VideoCapture(0)
+		global r
+		
+		if r.get('start')==None:
+			
+			r.set('start',"yes")
+			
 
 	def __del__(self):
-		self.video.release()
+		#self.video.release()
+		pass
 
 	def get_frame(self):
-		success, image = self.video.read()
+		global f
+		#frame = pickle.loads(r.get('frame'))
+		#a=frame
+		#a=f
+		"""
+		print(type(a))
+		try:
+			a=a.decode()
+		except:
+			pass
+		print(type(a))
+		"""
+		image=f
 		# We are using Motion JPEG, but OpenCV defaults to capture raw images,
 		# so we must encode it into JPEG in order to correctly display the
 		# video stream.
 
 		gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+		
 		faces_detected = face_detection_videocam.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
 		for (x, y, w, h) in faces_detected:
 			cv2.rectangle(image, pt1=(x, y), pt2=(x + w, y + h), color=(255, 0, 0), thickness=2)
@@ -42,23 +108,39 @@ class VideoCamera(object):
 
 class MyVideoCamera(object):
 	def __init__(self):
-		self.video = cv2.VideoCapture(0)
+		global r
+		pass
+		
+		
 
 	def __del__(self):
-		self.video.release()
+		#self.video.release()
+		pass
 
 	def get_frame(self):
-		success, image = self.video.read()
+		
+		global f
+		#frame = pickle.loads(r.get('frame'))
+		#a=frame
+		#a=f
+		#print(type(a))
+		#try:
+		
+		#a=a.decode()
+		#except:
+		#	pass
+		#print(type(a))
+		image=f
 		# We are using Motion JPEG, but OpenCV defaults to capture raw images,
 		# so we must encode it into JPEG in order to correctly display the
 		# video stream.
 
-		gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+		#gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 		#faces_detected = face_detection_videocam.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
 		#for (x, y, w, h) in faces_detected:
 		#	cv2.rectangle(image, pt1=(x, y), pt2=(x + w, y + h), color=(255, 0, 0), thickness=2)
-		frame_flip = cv2.flip(image,1)
-		ret, jpeg = cv2.imencode('.jpg', frame_flip)
+		#frame_flip = cv2.flip(image,1)
+		ret, jpeg = cv2.imencode('.jpg', image)
 
 		return jpeg.tobytes()
 
@@ -200,3 +282,7 @@ class LiveWebCam(object):
 		resize = cv2.resize(imgNp, (640, 480), interpolation = cv2.INTER_LINEAR) 
 		ret, jpeg = cv2.imencode('.jpg', resize)
 		return jpeg.tobytes()
+
+
+#p = mp.Process(target=func())
+#p.start()
